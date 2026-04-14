@@ -302,11 +302,9 @@ function fetchAndInit(){
   bar.style.display='block';
   bar.style.color='#3db87a';
   bar.textContent='Fetching latest data from GitHub...';
-  var bustUrl = GITHUB_URL + '?t=' + Date.now();
+  var bustUrl = GITHUB_URL + '?nocache=' + Date.now();
   var xhr=new XMLHttpRequest();
   xhr.open('GET', bustUrl, true);
-  xhr.setRequestHeader('Cache-Control','no-cache, no-store, must-revalidate');
-  xhr.setRequestHeader('Pragma','no-cache');
   xhr.responseType='arraybuffer';
   xhr.timeout=20000;
   xhr.ontimeout=function(){
