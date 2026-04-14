@@ -300,40 +300,51 @@ function saveStored(key,d){try{localStorage.setItem(key,JSON.stringify(d));}catc
 function fetchAndInit(){
   var bar=document.getElementById('syncBar');
   bar.style.display='block';
-  bar.textContent='Fetching training data from GitHub...';
+  bar.style.color='#3db87a';
+  bar.textContent='Fetching latest data from GitHub...';
+  var bustUrl = GITHUB_URL + '?t=' + Date.now();
   var xhr=new XMLHttpRequest();
-  xhr.open('GET',GITHUB_URL,true);
+  xhr.open('GET', bustUrl, true);
+  xhr.setRequestHeader('Cache-Control','no-cache, no-store, must-revalidate');
+  xhr.setRequestHeader('Pragma','no-cache');
   xhr.responseType='arraybuffer';
-  xhr.timeout=15000;
+  xhr.timeout=20000;
   xhr.ontimeout=function(){
-    document.getElementById('upSt').textContent='GitHub request timed out — loading local data';
-    loadLocal();
+    bar.style.color='#f5a623';
+    bar.textContent='\u26a0 Request timed out \u2014 showing cached data';
+    ALL_DATA=loadStored(STORAGE_KEY);
+    if(ALL_DATA.length)init();
+    else bar.textContent='\u26a0 Timed out and no cached data available';
   };
   xhr.onload=function(){
     if(xhr.status===200){
       try{
         ALL_DATA=parseTrainingFile(xhr.response);
         saveStored(STORAGE_KEY,ALL_DATA);
-        bar.textContent='\u2713 Synced: '+ALL_DATA.length+' training records';
+        bar.style.color='#3db87a';
+        bar.textContent='\u2713 Live data loaded: '+ALL_DATA.length+' training records';
         if(ALL_DATA.length)init();
+        else bar.textContent='\u26a0 File loaded but no records found';
       }catch(err){
         bar.style.color='#e05252';
-        bar.textContent='Parse error: '+err.message;
+        bar.textContent='\u2717 Parse error: '+err.message;
         ALL_DATA=loadStored(STORAGE_KEY);
-        if(ALL_DATA.length)init();
+        if(ALL_DATA.length){bar.textContent+='\u2014 showing cached data';init();}
       }
     }else{
       bar.style.color='#f5a623';
-      bar.textContent='GitHub error ('+xhr.status+') \u2014 using cached data';
+      bar.textContent='\u26a0 GitHub returned '+xhr.status+' \u2014 showing cached data';
       ALL_DATA=loadStored(STORAGE_KEY);
       if(ALL_DATA.length)init();
+      else bar.textContent+='. No cached data available.';
     }
   };
   xhr.onerror=function(){
     bar.style.color='#f5a623';
-    bar.textContent='Network error \u2014 using cached data';
+    bar.textContent='\u26a0 Network error \u2014 showing cached data';
     ALL_DATA=loadStored(STORAGE_KEY);
     if(ALL_DATA.length)init();
+    else bar.textContent+='. No cached data available.';
   };
   xhr.send();
 }
