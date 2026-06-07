@@ -92,6 +92,31 @@ tr.driver-row:hover td{background:rgba(232,160,32,0.08);}
   #driverView{display:none!important;}
   #mainView{display:block!important;}
 }
+
+/* ---- Tab Navigation ---- */
+.tab-nav{display:flex;gap:0;background:#0a1628;border-bottom:2px solid rgba(232,160,32,0.3);padding:0 14px;}
+.tab-btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#7a94b4;background:none;border:none;border-bottom:3px solid transparent;padding:10px 16px;cursor:pointer;margin-bottom:-2px;transition:color 0.15s;}
+.tab-btn:hover{color:#e8edf5;}
+.tab-btn.active{color:#e8a020;border-bottom-color:#e8a020;}
+/* ---- Distribution Tab ---- */
+.dist-card{background:#162840;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;margin-bottom:12px;}
+.dist-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.dist-input{flex:1;background:#0f1f3d;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 12px;color:#e8edf5;font-family:'Barlow',sans-serif;font-size:13px;outline:none;}
+.dist-input:focus{border-color:#e8a020;}
+.dist-add-btn{background:rgba(232,160,32,0.15);color:#e8a020;border:1px solid rgba(232,160,32,0.3);border-radius:8px;padding:8px 16px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;white-space:nowrap;}
+.dist-add-btn:hover{background:rgba(232,160,32,0.25);}
+.dist-list{list-style:none;display:flex;flex-direction:column;gap:6px;}
+.dist-item{display:flex;align-items:center;justify-content:space-between;background:#0f1f3d;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;font-size:13px;}
+.dist-email{color:#e8edf5;word-break:break-all;}
+.dist-remove{background:rgba(224,82,82,0.15);color:#e05252;border:1px solid rgba(224,82,82,0.3);border-radius:6px;padding:3px 10px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;margin-left:10px;}
+.dist-remove:hover{background:rgba(224,82,82,0.3);}
+.dist-note{font-size:11px;color:#7a94b4;margin-top:10px;line-height:1.5;}
+.dist-note b{color:#e8a020;}
+.dist-save-row{display:flex;align-items:center;gap:10px;margin-top:14px;}
+.dist-save-btn{background:rgba(61,184,122,0.15);color:#3db87a;border:1px solid rgba(61,184,122,0.3);border-radius:8px;padding:7px 18px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+.dist-save-btn:hover{background:rgba(61,184,122,0.25);}
+.dist-saved-msg{font-size:11px;color:#3db87a;opacity:0;transition:opacity 0.4s;}
+.dist-err{font-size:11px;color:#e05252;margin-top:4px;display:none;}
 </style>
 </head>
 <body>
@@ -106,6 +131,27 @@ tr.driver-row:hover td{background:rgba(232,160,32,0.08);}
   </div>
   <button class="print-btn" onclick="window.print()">&#128438; Print</button>
 </header>
+<nav class="tab-nav">
+  <button class="tab-btn active" id="tabDashboard" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" id="tabDistribution" onclick="switchTab('distribution')">Distribution</button>
+</nav>
+<div class="page" id="distributionView" style="display:none;">
+  <div class="dist-card">
+    <div class="ctitle">Email Distribution List</div>
+    <p style="font-size:12px;color:#7a94b4;margin-bottom:14px;">Recipients who receive the weekly training dashboard reminder email. Changes are saved locally and used by the <b style="color:#e8a020;">Weekly Dashboard Emails</b> task.</p>
+    <div class="dist-input-row">
+      <input class="dist-input" id="distEmailInput" type="email" placeholder="Add email address..." onkeydown="if(event.key==='Enter')distAddEmail()"/>
+      <button class="dist-add-btn" onclick="distAddEmail()">+ Add</button>
+    </div>
+    <div class="dist-err" id="distErr">Please enter a valid email address.</div>
+    <ul class="dist-list" id="distList"></ul>
+    <div class="dist-save-row">
+      <button class="dist-save-btn" onclick="distSave()">Save List</button>
+      <span class="dist-saved-msg" id="distSavedMsg">✓ Saved</span>
+    </div>
+    <p class="dist-note">These recipients are stored in your browser and referenced by the <b>weekly-dashboard-emails</b> scheduled task for this dashboard.</p>
+  </div>
+</div>
 <div class="page" id="mainView">
   <div class="kpis">
     <div class="kpi k1"><div class="klbl">Total Drivers Trained</div><div class="kval" id="kDrivers">--</div></div>
@@ -274,6 +320,8 @@ function parseTrainingFile(arraybuffer) {
   if (hi<0) hi=0;
   var hdrs=raw[hi], col={};
   hdrs.forEach(function(h,i){if(h!=null)col[String(h).trim()]=i;});
+  // Header row is 1 column left of data — shift every index by +1
+  Object.keys(col).forEach(function(k){col[k]=col[k]+1;});
   var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var rows=[];
   for (var i=hi+1;i<raw.length;i++) {
@@ -346,6 +394,83 @@ function fetchAndInit(){
   };
   xhr.send();
 }
+
+
+// ---- Tab switching ----
+function switchTab(tab) {
+  var isDash = tab === 'dashboard';
+  document.getElementById('mainView').style.display = isDash ? '' : 'none';
+  document.getElementById('driverView').style.display = 'none';
+  document.getElementById('distributionView').style.display = isDash ? 'none' : '';
+  document.getElementById('tabDashboard').classList.toggle('active', isDash);
+  document.getElementById('tabDistribution').classList.toggle('active', !isDash);
+}
+
+// ---- Distribution list ----
+var DIST_KEY = STORAGE_KEY + '_distribution';
+
+var DEFAULT_DIST = [
+  'aburnison@foodbankrockies.org',
+  'asalazar@foodbankrockies.org',
+  'kgarnanez@foodbankrockies.org',
+  'anlarson@foodbankrockies.org',
+  'rplumlee@wyomingfoodbank.org',
+  'jesse@synergy-solutionsllc.com'
+];
+
+function distLoad() {
+  var stored = loadStored(DIST_KEY);
+  return (stored && stored.length > 0) ? stored : DEFAULT_DIST.slice();
+}
+
+function distRender() {
+  var emails = distLoad();
+  var ul = document.getElementById('distList');
+  ul.innerHTML = '';
+  if (emails.length === 0) {
+    ul.innerHTML = '<li style="color:#7a94b4;font-size:12px;padding:8px 0;">No recipients added yet.</li>';
+    return;
+  }
+  emails.forEach(function(email, idx) {
+    var li = document.createElement('li');
+    li.className = 'dist-item';
+    li.innerHTML = '<span class="dist-email">' + escHtml(email) + '</span><button class="dist-remove" onclick="distRemove(' + idx + ')">Remove</button>';
+    ul.appendChild(li);
+  });
+}
+
+function distAddEmail() {
+  var input = document.getElementById('distEmailInput');
+  var val = input.value.trim().toLowerCase();
+  var errEl = document.getElementById('distErr');
+  if (!val || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  var emails = distLoad();
+  if (emails.indexOf(val) === -1) { emails.push(val); saveStored(DIST_KEY, emails); }
+  input.value = '';
+  distRender();
+}
+
+function distRemove(idx) {
+  var emails = distLoad();
+  emails.splice(idx, 1);
+  saveStored(DIST_KEY, emails);
+  distRender();
+}
+
+function distSave() {
+  var emails = distLoad();
+  saveStored(DIST_KEY, emails);
+  var msg = document.getElementById('distSavedMsg');
+  msg.style.opacity = '1';
+  setTimeout(function(){ msg.style.opacity = '0'; }, 2000);
+}
+
+// Init distribution list on load
+distRender();
+
 
 fetchAndInit();
 
