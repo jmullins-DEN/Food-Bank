@@ -138,7 +138,7 @@ tr.driver-row:hover td{background:rgba(232,160,32,0.08);}
 <div class="page" id="distributionView" style="display:none;">
   <div class="dist-card">
     <div class="ctitle">Email Distribution List</div>
-    <p style="font-size:12px;color:#7a94b4;margin-bottom:14px;">Recipients who receive the weekly training dashboard reminder email. Changes are saved locally and used by the <b style="color:#e8a020;">Weekly Dashboard Emails</b> task.</p>
+    <p style="font-size:12px;color:#7a94b4;margin-bottom:14px;">Recipients who receive the weekly training dashboard reminder email. Loaded from <b style="color:#e8a020;">Food-Bank/distribution.json</b> on GitHub — edit that file to update this list.</p>
     <div class="dist-input-row">
       <input class="dist-input" id="distEmailInput" type="email" placeholder="Add email address..." onkeydown="if(event.key==='Enter')distAddEmail()"/>
       <button class="dist-add-btn" onclick="distAddEmail()">+ Add</button>
@@ -149,7 +149,7 @@ tr.driver-row:hover td{background:rgba(232,160,32,0.08);}
       <button class="dist-save-btn" onclick="distSave()">Save List</button>
       <span class="dist-saved-msg" id="distSavedMsg">✓ Saved</span>
     </div>
-    <p class="dist-note">These recipients are stored in your browser and referenced by the <b>weekly-dashboard-emails</b> scheduled task for this dashboard.</p>
+    <p class="dist-note">These recipients are stored in GitHub (<b>Food-Bank/distribution.json</b>) and referenced by the <b>weekly-dashboard-emails</b> scheduled task for this dashboard.</p>
   </div>
 </div>
 <div class="page" id="mainView">
@@ -407,65 +407,48 @@ function switchTab(tab) {
 }
 
 // ---- Distribution list ----
-var DIST_KEY = STORAGE_KEY + '_distribution';
+var DIST_URL = 'https://raw.githubusercontent.com/jmullins-DEN/Food-Bank/main/distribution.json';
+var _distEmails = [];
 
-var DEFAULT_DIST = [
-  'aburnison@foodbankrockies.org',
-  'asalazar@foodbankrockies.org',
-  'kgarnanez@foodbankrockies.org',
-  'anlarson@foodbankrockies.org',
-  'rplumlee@wyomingfoodbank.org',
-  'jesse@synergy-solutionsllc.com'
-];
-
-function distLoad() {
-  var stored = loadStored(DIST_KEY);
-  return (stored && stored.length > 0) ? stored : DEFAULT_DIST.slice();
+function distLoad(cb) {
+  fetch(DIST_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ _distEmails = data.recipients || []; cb(_distEmails); })
+    .catch(function(){ _distEmails = []; cb([]); });
 }
 
 function distRender() {
-  var emails = distLoad();
-  var ul = document.getElementById('distList');
-  ul.innerHTML = '';
-  if (emails.length === 0) {
-    ul.innerHTML = '<li style="color:#7a94b4;font-size:12px;padding:8px 0;">No recipients added yet.</li>';
-    return;
-  }
-  emails.forEach(function(email, idx) {
-    var li = document.createElement('li');
-    li.className = 'dist-item';
-    li.innerHTML = '<span class="dist-email">' + escHtml(email) + '</span><button class="dist-remove" onclick="distRemove(' + idx + ')">Remove</button>';
-    ul.appendChild(li);
+  distLoad(function(emails) {
+    var ul = document.getElementById('distList');
+    ul.innerHTML = '';
+    if (emails.length === 0) {
+      ul.innerHTML = '<li style="color:#7a94b4;font-size:12px;padding:8px 0;">No recipients found. Edit distribution.json in GitHub.</li>';
+      return;
+    }
+    emails.forEach(function(email) {
+      var li = document.createElement('li');
+      li.className = 'dist-item';
+      li.innerHTML = '<span class="dist-email">' + escHtml(email) + '</span>';
+      ul.appendChild(li);
+    });
   });
 }
 
 function distAddEmail() {
-  var input = document.getElementById('distEmailInput');
-  var val = input.value.trim().toLowerCase();
   var errEl = document.getElementById('distErr');
-  if (!val || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
-    errEl.style.display = 'block'; return;
-  }
   errEl.style.display = 'none';
-  var emails = distLoad();
-  if (emails.indexOf(val) === -1) { emails.push(val); saveStored(DIST_KEY, emails); }
-  input.value = '';
-  distRender();
+  alert('To add recipients, edit distribution.json in the Food-Bank GitHub repo.');
 }
 
 function distRemove(idx) {
-  var emails = distLoad();
-  emails.splice(idx, 1);
-  saveStored(DIST_KEY, emails);
-  distRender();
+  alert('To remove recipients, edit distribution.json in the Food-Bank GitHub repo.');
 }
 
 function distSave() {
-  var emails = distLoad();
-  saveStored(DIST_KEY, emails);
   var msg = document.getElementById('distSavedMsg');
+  msg.textContent = '✓ Edit distribution.json in GitHub to change recipients';
   msg.style.opacity = '1';
-  setTimeout(function(){ msg.style.opacity = '0'; }, 2000);
+  setTimeout(function(){ msg.style.opacity = '0'; }, 4000);
 }
 
 // Init distribution list on load
