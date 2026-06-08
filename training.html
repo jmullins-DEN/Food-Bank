@@ -365,6 +365,7 @@ function distSaveToGitHub(){var emails=distCurrentEmails();var statusEl=document
 }
 distFetchFromGitHub();
 
+try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
 fetchAndInit();
 
 </script>
